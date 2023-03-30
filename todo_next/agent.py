@@ -1,78 +1,125 @@
 import ast
 import datetime
 import json
+from dataclasses import dataclass, field
 from langchain import LLMChain, OpenAI, PromptTemplate
+from langchain.vectorstores import FAISS
+from langchain.embeddings.openai import OpenAIEmbeddings
+from todo_next.templates import sort_template
+from todo_next.task_base import Task, TaskItems
+from todo_next.utils import datetime_to_describe
 
-
-def get_now():
-    time = datetime.datetime.now()
-    return time.strftime('%Y年%m月%d日 %H時%M分')
 
 def task_list():
-    with open("task.json", "r") as f:
-        tasks = json.load(f)["task"]
-        tasks = "\n".join(tasks)
+    tasks = TaskItems.load_local()
+    tasks = tasks.to_list_fmt()
     print(tasks)
 
-
 def task_sort():
-    with open("task.json", "r") as f:
-        tasks = json.load(f)["task"]
-        sorted_tasks = sort_task(tasks)
-    with open("task.json", "w") as f:
-        f.write(json.dumps({"task":sorted_tasks}, ensure_ascii=False))
-
-
+    tasks = TaskItems.load_local()
+    sorted_tasks = sort_task(tasks)
+    sorted_tasks.save_local()
 
 def task_push():
     new_task = input("Hi! What's your task:\n")
     comment = input("""I got it! You can write comment(exp. tomorrow night is deadline, This is difficult and so on)\n""")
-    now = get_now()
-    task_describe = f"タスク内容:{new_task}/いつまでにやりたいか:{comment}/登録日時{now}"
+    task = Task(title=new_task, comment=comment)
+    taskitems = TaskItems.load_local()
+    taskitems.add(task)
+    sorted_tasks = sort_task(taskitems)
+    sorted_tasks.save_local()
 
-    with open("task.json", "r") as f:
-        current_tasks = json.load(f)["task"]
-    current_tasks.append(task_describe)
-    sorted_tasks = sort_task(current_tasks)
-    with open("task.json", "w") as f:
-        f.write(json.dumps({"task":sorted_tasks}, ensure_ascii=False))
-
-
-    
-def sort_task(tasks):
+def sort_task(taskitems):
     llm = OpenAI(temperature=0, model="text-davinci-003")
-    template="""
-    現在の日時は{now}です。
-    あなたは私の秘書です。今私のタスクは次のようになっています。
-    各タスクは
-    タスク番号. タスク内容/いつまでにやりたいか/登録日時
-    のように与えられています。
-    
-    {tasks}
-
-    各タスクの重要度、登録日時、現在の日時、コメントなどを総合的に評価して優先度の高い順番に並び替えて出力してください。
-    出力する際には以下に示す例のようにタスク番号を出力してください。
-    例: [1,3,5,4,2]
-
-    出力する際には以下の制約を守ってください
-    1. 1~{tasks_num}までの番号を１回づつ出力する
-
-    では始めてください
-    出力:
-    """
-    prompt = PromptTemplate(template=template, 
+    prompt = PromptTemplate(template=sort_template(), 
                             input_variables=["tasks", "tasks_num", "now"])
     bot = LLMChain(llm=llm, prompt=prompt, verbose=True)
     gpt_tasks = ""
-    for i, task in enumerate(tasks):
-        gpt_tasks += f"{i+1}. {task}\n"
-    sorted_number = bot.predict(tasks=str(gpt_tasks), now=get_now(), tasks_num=len(tasks))
+    gpt_tasks = taskitems.to_sort_fmt()
+    now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
+    now = datetime_to_describe(now)
+    sorted_number = bot.predict(tasks=str(gpt_tasks), now=now, tasks_num=len(taskitems))
     sorted_number = ast.literal_eval(sorted_number)
     sorted_tasks = []
     for i in sorted_number:
-        sorted_tasks.append(tasks[int(i)-1])
+        sorted_tasks.append(taskitems.tasks[int(i)-1])
+    sorted_tasks = TaskItems(sorted_tasks)
     return sorted_tasks
 
+def search_tasks(task):
+    embeddings = OpenAIEmbeddings()
+    db = FAISS.load_local("old_tasks", embeddings)
+    docs = db.similarity_search(task.describe())
+    return docs.page_content
+
+def store_tasks(task):
+    embeddings = OpenAIEmbeddings()
+    db = FAISS.load_local("old_tasks", embeddings)
+    db.add_texts([task.describe()])
+    db.save_local("old_tasks")
+
+def task_done():
+    task_list()
+    done_num = input("which task did you done")
+
+
+
+class TaskItems:
+    def __init__(self, tasks):
+        self.tasks = tasks
+
+    @classmethod
+    def load_local(cls, filepath="task.json"):
+        tasks = []
+        with open(filepath) as f:
+            tasks_local = json.load(f)["task"]
+            for task_json in tasks_local:
+                task = Task(**task_json)
+                tasks.append(task)
+        return cls(tasks=tasks)
+    
+    def __len__(self):
+        return len(self.tasks)
+
+    def save_local(self, filepath="task.json"):
+        out = []
+        with open(filepath, "w") as f:
+            for task in self.tasks:
+                task_json = task.to_json()
+                out.append(task_json)
+            f.write(json.dumps({"task":out}, ensure_ascii=False))
+
+    def add(self, task):
+        self.tasks.append(task)
+
+    def to_sort_fmt(self):
+        return "\n".join(f"{i+1}. {task.describe()}" for i, task in enumerate(self.tasks))
+
+    def to_list_fmt(self):
+        return "\n".join(f"{i+1}. {task.describe_ui()}" for i, task in enumerate(self.tasks))
+        
+class Task:
+    def __init__(self, title, comment, push_time=None, done_time=None):
+        self.title = title
+        self.comment = comment
+        if not push_time:
+            self.push_time = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
+        else:
+            self.push_time = push_time
+        self.done_time = done_time
+
+    def describe(self):
+        time = datetime_to_describe(self.push_time)
+        return f"タスク内容:{self.title}/いつまでにやりたいか:{self.comment}/登録日時{time}"
+
+    def describe_ui(self):
+        time = datetime_to_describe(self.push_time)
+        return f"{time}: {self.comment}-{self.title}"
+    
+    def to_json(self):
+        return {"title":self.title, 
+                "push_time":self.push_time,
+                "comment":self.comment}
 # def main():
 #     llm = OpenAI(temperature=0, model="text-davinci-003")
 #     template="""
