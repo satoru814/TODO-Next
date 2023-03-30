@@ -12,6 +12,8 @@ openai = "^0.27.2"
 
 [tool.poetry.scripts]
 task-push = "todo_next.agent:task_push"
+task-list = "todo_next.agent:task_list"
+task-sort = "todo_next.agent:task_sort"
 
 [build-system]
 requires = ["poetry-core"]
