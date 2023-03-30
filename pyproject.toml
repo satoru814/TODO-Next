@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "todo-next"
+version = "0.1.0"
+description = ""
+authors = ["satoru814 <satoru-sakamoto@c-fo.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+langchain = "^0.0.125"
+openai = "^0.27.2"
+
+[tool.poetry.scripts]
+task-push = "todo_next.agent:task_push"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
