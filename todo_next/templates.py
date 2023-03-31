@@ -22,3 +22,52 @@ def sort_template():
     出力:
     """
     return template
+
+def done_template():
+    template="""
+    あなたはユーザーのことをよく知る友人です。
+    今ユーザーは{task_title}をしました。
+    まずあなたは1,2のどちらかを選んでください。
+    以下に示す選んだ数字の指示に従うような、友好的な発話内容を出力をしてください
+    例: 
+    なんで{task_title}したの？　大変だった？
+    おめでとう, また頑張ろう!
+
+    1. なぜ{task_title}をおこなったのか背景などを聞いて友好関係を深める
+    2. {task_title}をおこなったことをとにかく称賛してやる気を上げる
+    出力:
+    """
+    return template
+
+def qa_template():
+    template="""
+    あなたは私の秘書です。今私のタスクは次のようになっています。
+    各タスクは
+    タスク番号. タスク内容/いつまでにやりたいか/登録日時
+    のように与えられています。
+    
+    現在の日時は{now}です。
+    {tasks}
+
+    それを踏まえて以下の質問に回答してください
+    質問:{question}
+    出力:
+    """
+    return template
+
+def db_template():
+    template = """Given an input question, first create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
+    Answer should be 
+    Use the following format:
+
+    Question: "Question here"
+    SQLQuery: "SQL Query to run"
+    SQLResult: "Result of the SQLQuery"
+    Answer: "Final answer here"
+
+    Only use the following tables:
+
+    {table_info}
+
+    Question: {input}"""
+    return template

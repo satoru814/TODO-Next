@@ -30,6 +30,8 @@ class TaskItems:
     def add(self, task):
         self.tasks.append(task)
 
+    def remove(self, index):
+        del self.tasks[index]
     def to_sort_fmt(self):
         return "\n".join(f"{i+1}. {task.describe()}" for i, task in enumerate(self.tasks))
 
@@ -48,6 +50,9 @@ class Task:
 
     def describe(self):
         time = datetime_to_describe(self.push_time)
+
+        if not self.comment:
+            return f"タスク内容:{self.title}/登録日時{time}"    
         return f"タスク内容:{self.title}/いつまでにやりたいか:{self.comment}/登録日時{time}"
 
     def describe_ui(self):
@@ -55,6 +60,15 @@ class Task:
         return f"{time}: {self.comment}-{self.title}"
     
     def to_json(self):
-        return {"title":self.title, 
-                "push_time":self.push_time,
+        return {"task_title":self.title, 
+                "start_time":self.push_time,
                 "comment":self.comment}
+    
+    def is_done(self):
+        self.done_time = datetime.datetime.now()
+        self.push_time = datetime.datetime(self.push_time.split())
+        return {"task_title":self.title, 
+                "start_time":self.push_time,
+                "done_time":self.done_time,
+                "comment":self.comment}
+    

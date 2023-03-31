@@ -1,5 +1,8 @@
 import datetime
 
+def getnow():
+    return datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
+
 def datetime_to_describe(time_strp):
     y,m,d,h,min = [int(i) for i in time_strp.split("-")]
     time = datetime.datetime(y,m,d,h,min)
