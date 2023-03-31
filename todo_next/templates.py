@@ -71,3 +71,12 @@ def db_template():
 
     Question: {input}"""
     return template
+
+def gen_template():
+    template = """あなたはコンサルタントです。
+    以下のタスクを参考にして次のタスクを提案してください:
+    タスク: {task}
+
+    回答:
+    """
+    return template

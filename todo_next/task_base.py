@@ -39,13 +39,13 @@ class TaskItems:
         return "\n".join(f"{i+1}. {task.describe_ui()}" for i, task in enumerate(self.tasks))
         
 class Task:
-    def __init__(self, title, comment, push_time=None, done_time=None):
-        self.title = title
+    def __init__(self, task_title, comment="", start_time=None, done_time=None):
+        self.title = task_title
         self.comment = comment
-        if not push_time:
+        if not start_time:
             self.push_time = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
         else:
-            self.push_time = push_time
+            self.push_time = start_time
         self.done_time = done_time
 
     def describe(self):
@@ -66,7 +66,7 @@ class Task:
     
     def is_done(self):
         self.done_time = datetime.datetime.now()
-        self.push_time = datetime.datetime(self.push_time.split())
+        self.push_time = datetime.datetime(*[int(t) for t in self.push_time.split("-")])
         return {"task_title":self.title, 
                 "start_time":self.push_time,
                 "done_time":self.done_time,

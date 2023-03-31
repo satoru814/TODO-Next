@@ -6,7 +6,7 @@ import sys
 from langchain import LLMChain, OpenAI, PromptTemplate, SQLDatabaseChain
 from langchain.vectorstores import FAISS
 from langchain.embeddings.openai import OpenAIEmbeddings
-from todo_next.templates import sort_template, done_template, qa_template, db_template
+from todo_next.templates import sort_template, done_template, qa_template, db_template, gen_template
 from todo_next.task_base import Task, TaskItems
 from todo_next.utils import datetime_to_describe, getnow
 from todo_next.db import DB
@@ -14,8 +14,11 @@ from todo_next.db import DB
 
 
 class TaskAgent:
-    def __init__(self, db_path="sqlite:///old_task.db"):
-        self.taskitems = TaskItems.load_local()
+    def __init__(self, task_path="task.json", db_path="sqlite:///old_task.db"):
+        if os.path.isfile(task_path):
+            self.taskitems = TaskItems.load_local()
+        else:
+            self.taskitems = TaskItems()
         if os.path.isfile(db_path):
             self.db = DB.load_local(filepath=db_path)
         else:
@@ -34,7 +37,7 @@ class TaskAgent:
         """I got it! You can write comment(exp. tomorrow night is deadline, 
         This is difficult and so on)\n"""
         )
-        task = Task(title=new_task, comment=comment)
+        task = Task(task_title=new_task, comment=comment)
         self.taskitems.add(task)
         self.sort_task()
         self.taskitems.save_local()
@@ -72,19 +75,18 @@ class TaskAgent:
     def task_done(self):
         self.task_list()
         done_num = input("which task did you done\n")
-        taskitems = TaskItems.load_local()
-        task = taskitems.tasks[int(done_num)-1]
+        task = self.taskitems.tasks[int(done_num)-1]
         self.db.add(task.is_done())
-        taskitems.remove(int(done_num)-1)
+        self.taskitems.remove(int(done_num)-1)
 
         llm = OpenAI(temperature=1, model="text-davinci-003")
         prompt = PromptTemplate(template=done_template(), 
                                 input_variables=["task_title"])
         bot = LLMChain(llm=llm, prompt=prompt, verbose=True)
         ans = bot.predict(task_title=task.title)
+        self.taskitems.save_local()
         return ans
         # store_tasks(task)
-        # taskitems.save_local()
 
     def task_qa(self):
         self.task_list()
@@ -114,6 +116,34 @@ class TaskAgent:
         )
         ans = sql_chain(query)["result"]
         return ans
+    
+    def gen(self):
+        self.task_list()
+        gen_num = input("新たな何番のタスクを参考にしてタスクを設定しますか？")
+        llm = OpenAI(temperature=1, model="text-davinci-003")
+        prompt = PromptTemplate(template=gen_template(), 
+                                input_variables=["task"])
+        bot = LLMChain(llm=llm, prompt=prompt, verbose=True)
+        task = self.taskitems.tasks[int(gen_num)-1]
+        suggest_task = bot.predict(task=task.title)
+        yes_no = input(f"{suggest_task}とかどうでしょう？  [y/n]")
+        if yes_no == "y":
+            task = Task(task_title=suggest_task)
+            self.taskitems.add(task)
+            self.sort_task()
+            self.taskitems.save_local()
+            return "満足してもらえてよかったです😃　　タスクリストに追加しました"
+        else:
+            suggest_task = bot.predict(task=task.title)
+            yes_no = input(f"これは！？{suggest_task}  [y/n]")
+            if yes_no == "y":
+                task = Task(task_title=suggest_task)
+                self.taskitems.add(task)
+                self.sort_task()
+                self.taskitems.save_local()
+                return "満足してもらえてよかったです😃　タスクリストに追加しました"
+            
+        return "次こそは満足させます。"
 
 def push():
     TaskAgent().task_push()
@@ -137,4 +167,8 @@ def qa():
 
 def old_qa():
     ans = TaskAgent().db_sarch()
+    print(ans)
+
+def gen():
+    ans = TaskAgent().gen()
     print(ans)

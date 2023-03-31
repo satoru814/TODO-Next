@@ -17,6 +17,7 @@ task-sort = "todo_next.agent:sort"
 task-done = "todo_next.agent:done"
 task-qa = "todo_next.agent:qa"
 task-old = "todo_next.agent:old_qa"
+task-gen = "todo_next.agent:gen"
 
 [build-system]
 requires = ["poetry-core"]
