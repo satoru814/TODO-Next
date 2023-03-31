@@ -1,13 +1,10 @@
 import ast
 import os
-import datetime
-import sys
-import json
 
-from dataclasses import dataclass, field
-from langchain import LLMChain, OpenAI, PromptTemplate, SQLDatabase, SQLDatabaseChain
+import sys
+
+from langchain import LLMChain, OpenAI, PromptTemplate, SQLDatabaseChain
 from langchain.vectorstores import FAISS
-from langchain.memory import ConversationBufferMemory
 from langchain.embeddings.openai import OpenAIEmbeddings
 from todo_next.templates import sort_template, done_template, qa_template, db_template
 from todo_next.task_base import Task, TaskItems
